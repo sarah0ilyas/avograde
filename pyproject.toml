@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "avograde"
+version = "0.1.0"
+description = "Real-time avocado ripeness grading with caching, fallback, and drift monitoring."
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24", "pandas>=2.0", "openpyxl>=3.1"]
+
+[project.optional-dependencies]
+model = ["torch>=2.0", "torchvision>=0.15"]
+serve = ["fastapi>=0.110", "uvicorn>=0.27", "pillow>=10.0"]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+avograde-demo = "avograde.demo:main"
+avograde-train = "avograde.train:cli"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+
