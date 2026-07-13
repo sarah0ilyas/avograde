@@ -108,8 +108,3 @@ streamlit run streamlit_app.py
 
 PyTorch · torchvision · FastAPI · Docker · pandas · NumPy · Streamlit · pytest. Packaged as an installable `src`-layout project with CI running the test suite on every push.
 
-## What I'd do next
-
-- Address the stage 4↔5 confusion with class-weighted loss and targeted data.
-- Fine-tune ResNet18 for more epochs at a lower learning rate — the val curve was still climbing at 5 epochs.
-- Route the Streamlit demo through the serving layer so the UI exercises the cache/fallback path directly.
