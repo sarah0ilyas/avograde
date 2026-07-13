@@ -1,4 +1,3 @@
-
 # AvoGrade
 
 Real-time avocado ripeness grading — a computer-vision model wrapped in a full production serving and monitoring stack. Built as an end-to-end system, not a notebook: honest leakage-safe evaluation, a cache-first API with graceful fallback, batch scoring, and drift monitoring that acts on what it detects.
@@ -20,7 +19,6 @@ flowchart LR
     M --> AL[Alert / retrain flag]
 
     classDef built fill:#E1F5EE,stroke:#0F6E56,color:#04342C;
-    classDef edge fill:#FAEEDA,stroke:#854F0B,color:#412402;
     class B,C,A,F,M,AL built;
 ```
 
@@ -32,16 +30,18 @@ Every stage is built and demonstrated on real data. The API serves cache-first; 
 
 Evaluated on a **leakage-safe split** (whole fruit held out — see below), on unseen avocados:
 
-| Model | Accuracy | vs. baseline |
+| Model | Accuracy | Stage-5 recall |
 |---|---|---|
 | Majority-class baseline | 0.24 | — |
-| From-scratch CNN | 0.63 | +0.39 |
-| ResNet18 (transfer learning) | **0.71** | +0.47 |
+| From-scratch CNN | 0.63 | 0.05 |
+| ResNet18 (transfer learning) | 0.71 | 0.39 |
+| ResNet18 + class weighting, 8 epochs | **0.78** | **0.78** |
 
-The error *structure* is the real finding:
+Two findings matter more than the headline number:
 
-- **Errors are almost entirely between adjacent ripeness stages** — the model confuses stage 3 with 4, never 1 with 5. It learned the ripeness ordering; it blurs neighbouring boundaries, which is where human graders disagree too.
-- **The overripe class was the hard case.** The from-scratch CNN caught only 5% of stage-5 fruit, collapsing them into stage 4. Transfer learning lifted stage-5 recall to 39% — an 8× improvement — but the residual error sits entirely on the stage 4↔5 boundary, the two most visually similar stages. That points to a data-ambiguity limit, not model capacity: the next lever is class weighting or more stage-5 data, not a bigger network.
+**Errors are almost entirely between adjacent ripeness stages** — the model confuses stage 3 with 4, never 1 with 5. It learned the ripeness ordering; it blurs neighbouring boundaries, which is where human graders disagree too.
+
+**The overripe class was the hard case — and it got fixed.** The from-scratch CNN caught only 5% of stage-5 fruit, collapsing them into stage 4. Transfer learning lifted that to 39%. Adding class-weighted loss and training longer (8 epochs, still climbing) recovered stage-5 recall to **78%**, and cut the stage 4↔5 confusion from 219 misclassified fruit to 81. The evidence suggests the extra epochs did most of the work: the near-1.0 class weights indicate only mild imbalance, so the boundary was learnable — it just needed more training to resolve.
 
 ---
 
@@ -74,12 +74,12 @@ src/avograde/
 │   ├── labels.py      # spreadsheet -> labels, split BY FRUIT
 │   ├── dataset.py     # torch Dataset
 │   └── splits.py      # leakage-safe splitting
-├── models/grader_cnn.py   # CNN + ResNet18 + training loop
+├── models/grader_cnn.py   # CNN + ResNet18 + weighted training loop
 ├── serving/           # PredictionService, baseline, FastAPI app
 ├── monitoring/drift.py     # PSI/KS drift detection
 ├── batch.py           # batch scoring job
 ├── alerting.py        # drift-triggered alert / retrain flag
-├── train.py           # training entry point
+├── train.py           # training entry point (computes class weights)
 └── eval.py            # confusion matrix + per-class metrics
 tests/                 # pytest suite
 Dockerfile             # CPU-only serving image
@@ -94,8 +94,8 @@ pip install -e ".[model,serve,dev]"
 pytest
 
 # train / evaluate
-python -m avograde.train --excel <labels.xlsx> --images <photos/> --arch resnet18 --epochs 5
-python -m avograde.eval  --excel <labels.xlsx> --images <photos/> --model avograder_resnet.pt --arch resnet18
+python -m avograde.train --excel <labels.xlsx> --images <photos/> --arch resnet18 --epochs 8 --out avograder_weighted.pt
+python -m avograde.eval  --excel <labels.xlsx> --images <photos/> --model avograder_weighted.pt --arch resnet18
 
 # serve (API)
 docker build -t avograde . && docker run -p 8000:8000 avograde
@@ -109,3 +109,8 @@ streamlit run streamlit_app.py
 
 PyTorch · torchvision · FastAPI · Docker · pandas · NumPy · Streamlit · pytest. Packaged as an installable `src`-layout project with CI running the test suite on every push.
 
+## Limitations & next steps
+
+- Train further — the validation curve was still climbing at 8 epochs, so accuracy likely isn't saturated.
+- The remaining stage 4↔5 errors look like genuine visual ambiguity; targeted collection of more overripe examples is the next lever, not more model tuning.
+- Route the Streamlit demo through the serving layer so the UI exercises the cache/fallback path directly.
