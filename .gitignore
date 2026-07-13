@@ -7,3 +7,9 @@ server.log
 .DS_Store
 *.egg-info/
 *.egg-info/
+
+# runtime artifacts
+*.pt
+drift_alerts.jsonl
+RETRAIN_NEEDED
+server.log
