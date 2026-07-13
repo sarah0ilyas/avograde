@@ -1,3 +1,4 @@
+
 # AvoGrade
 
 Real-time avocado ripeness grading — a computer-vision model wrapped in a full production serving and monitoring stack. Built as an end-to-end system, not a notebook: honest leakage-safe evaluation, a cache-first API with graceful fallback, batch scoring, and drift monitoring that acts on what it detects.
